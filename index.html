@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RGB Sound Strip - Live Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0a0c10;
+      --surface:    #111318;
+      --border:     #1e2230;
+      --accent:     #00e5ff;
+      --accent2:    #ff3c78;
+      --text:       #d4dbe8;
+      --muted:      #5a6275;
+      --mono:       'Share Tech Mono', monospace;
+      --sans:       'Barlow', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      overflow-x: hidden;
+    }
+
+    /* ---- NOISE TEXTURE OVERLAY ---- */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ---- LAYOUT ---- */
+    .page { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ---- HEADER ---- */
+    header { margin-bottom: 48px; }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: clamp(28px, 5vw, 52px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -1px;
+    }
+    h1 span { color: var(--accent); }
+    .subtitle {
+      margin-top: 12px;
+      font-size: 16px;
+      font-weight: 300;
+      color: var(--muted);
+      max-width: 480px;
+    }
+
+    /* ---- STRIP CANVAS ---- */
+    .strip-wrapper {
+      position: relative;
+      margin: 40px 0 12px;
+    }
+    #stripCanvas {
+      width: 100%;
+      height: 56px;
+      border-radius: 8px;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .strip-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      pointer-events: none;
+      filter: blur(18px);
+      opacity: 0.45;
+      z-index: -1;
+      transform: scaleY(1.6);
+    }
+    #glowCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      display: block;
+    }
+
+    /* ---- SOUND BAR ---- */
+    .meters { display: flex; gap: 10px; align-items: center; margin-bottom: 36px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+    .meter-label { min-width: 56px; }
+    .meter-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .meter-fill { height: 100%; border-radius: 2px; transition: width 40ms linear; }
+    #levelFill  { background: linear-gradient(90deg, #00e5ff, #0080ff); width: 0%; }
+    #peakFill   { background: var(--accent2); width: 0%; }
+    .meter-val  { min-width: 42px; text-align: right; }
+
+    /* ---- CONTROLS ROW ---- */
+    .controls { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; align-items: center; }
+
+    /* Mode buttons */
+    .mode-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .mode-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mode-btn.active { border-color: var(--accent); color: var(--bg); background: var(--accent); }
+
+    /* Sliders */
+    .slider-group { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    .slider-row { display: flex; flex-direction: column; gap: 4px; }
+    .slider-row label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 130px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Simulate / MIC buttons */
+    .action-group { display: flex; gap: 10px; margin-left: auto; }
+    .btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 9px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.15s;
+    }
+    .btn-outline { background: transparent; border-color: var(--border); color: var(--muted); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary.running { background: var(--muted); border-color: var(--muted); }
+
+    /* ---- INFO CARDS ---- */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 48px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .card.highlight { border-color: var(--accent); }
+    .card-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .card-body { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ---- WIRING TABLE ---- */
+    .section-title { font-family: var(--mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 48px; }
+    th { text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding: 0 12px 10px 0; }
+    td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    td:first-child { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+    tr:last-child td { border-bottom: none; }
+
+    /* ---- FOOTER ---- */
+    footer { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 1px; text-align: center; padding-top: 32px; border-top: 1px solid var(--border); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ---- MIC STATUS ---- */
+    #micStatus { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 4px; }
+
+    /* beat flash */
+    @keyframes beatFlash {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .beat-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent2);
+      margin-right: 6px;
+      animation: beatFlash 0.3s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <div class="eyebrow">ESP32 + WS2812B + Sound Sensor</div>
+    <h1>RGB <span>Sound</span> Strip</h1>
+    <p class="subtitle">Interactive browser demo of all four firmware visual modes. Use the simulate button or your microphone to drive the animations.</p>
+  </header>
+
+  <!-- STRIP DISPLAY -->
+  <div class="strip-wrapper">
+    <canvas id="stripCanvas" width="600" height="56"></canvas>
+    <div class="strip-glow">
+      <canvas id="glowCanvas" width="600" height="56"></canvas>
+    </div>
+  </div>
+
+  <!-- METERS -->
+  <div class="meters">
+    <span class="meter-label">LEVEL</span>
+    <div class="meter-track"><div class="meter-fill" id="levelFill"></div></div>
+    <span class="meter-val" id="levelVal">0.000</span>
+    <span class="meter-label" style="margin-left:16px">PEAK</span>
+    <div class="meter-track"><div class="meter-fill" id="peakFill"></div></div>
+    <span class="meter-val" id="peakVal">0.000</span>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="mode-group">
+      <button class="mode-btn active" data-mode="vu">VU Meter</button>
+      <button class="mode-btn" data-mode="pulse">Pulse</button>
+      <button class="mode-btn" data-mode="rainbow">Rainbow</button>
+      <button class="mode-btn" data-mode="fire">Fire</button>
+    </div>
+    <div class="slider-group">
+      <div class="slider-row">
+        <label>Brightness</label>
+        <input type="range" id="brightnessSlider" min="20" max="255" value="200" />
+      </div>
+      <div class="slider-row">
+        <label>LED Count</label>
+        <input type="range" id="ledCountSlider" min="10" max="120" value="60" />
+      </div>
+      <div class="slider-row">
+        <label>Smoothing</label>
+        <input type="range" id="smoothSlider" min="1" max="80" value="20" />
+      </div>
+    </div>
+    <div class="action-group">
+      <button class="btn btn-outline" id="micBtn">Use Mic</button>
+      <button class="btn btn-primary" id="simBtn">Simulate</button>
+      <span id="micStatus"></span>
+    </div>
+  </div>
+
+  <!-- MODE CARDS -->
+  <p class="section-title">Visual Modes</p>
+  <div class="cards" id="modeCards">
+    <div class="card highlight" data-card="vu">
+      <div class="card-tag">Mode 0</div>
+      <div class="card-title">VU Meter</div>
+      <div class="card-body">Classic bar that grows with volume. Green to red gradient. White peak-hold dot decays after each transient.</div>
+    </div>
+    <div class="card" data-card="pulse">
+      <div class="card-tag">Mode 1</div>
+      <div class="card-title">Pulse</div>
+      <div class="card-body">All LEDs pulse in brightness with the beat. Hue drifts slowly so colour shifts even in silence.</div>
+    </div>
+    <div class="card" data-card="rainbow">
+      <div class="card-tag">Mode 2</div>
+      <div class="card-title">Rainbow</div>
+      <div class="card-body">Full-spectrum rainbow scrolls along the strip. Loud sounds accelerate the scroll speed.</div>
+    </div>
+    <div class="card" data-card="fire">
+      <div class="card-tag">Mode 3</div>
+      <div class="card-title">Fire</div>
+      <div class="card-body">Heat diffusion simulation. Sound injects heat at the base, driving taller and wilder flames.</div>
+    </div>
+  </div>
+
+  <!-- WIRING TABLE -->
+  <p class="section-title">Quick Wiring Reference</p>
+  <table>
+    <thead>
+      <tr><th>ESP32 Pin</th><th>Connects To</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GPIO 13</td><td>LED Strip DATA IN</td><td>Through 330-470 ohm resistor</td></tr>
+      <tr><td>GND</td><td>LED Strip GND + PSU GND</td><td>Common ground is required</td></tr>
+      <tr><td>3.3V</td><td>Sound Sensor VCC</td><td>Do not use 5V; ADC is 3.3V max</td></tr>
+      <tr><td>GND</td><td>Sound Sensor GND</td><td></td></tr>
+      <tr><td>GPIO 34</td><td>Sound Sensor AOUT</td><td>Analog signal — main input</td></tr>
+      <tr><td>GPIO 35</td><td>Sound Sensor DOUT</td><td>Optional digital threshold output</td></tr>
+      <tr><td>External 5V</td><td>LED Strip 5V rail</td><td>Dedicated PSU; min 3A for 60 LEDs</td></tr>
+    </tbody>
+  </table>
+
+  <footer>
+    RGB Sound Strip &mdash; MIT License &mdash;
+    <a href="https://github.com/" target="_blank">View on GitHub</a>
+    &mdash; Built with ESP32 + FastLED
+  </footer>
+</div>
+
+<script>
+// ============================================================
+//  SIMULATION ENGINE
+// ============================================================
+
+const NUM_LEDS = (() => parseInt(document.getElementById('ledCountSlider').value))();
+
+let cfg = {
+  numLeds:    60,
+  brightness: 200,
+  smoothing:  0.20,
+  mode:       'vu',
+};
+
+let state = {
+  smoothedLevel: 0,
+  peakLevel:     0,
+  hueOffset:     0,
+  heat:          new Uint8Array(120),
+  simRunning:    false,
+  simTime:       0,
+  micActive:     false,
+  micStream:     null,
+  analyser:      null,
+  micBuffer:     null,
+};
+
+// ============================================================
+//  CANVAS SETUP
+// ============================================================
+
+const stripCanvas = document.getElementById('stripCanvas');
+const glowCanvas  = document.getElementById('glowCanvas');
+const sCtx  = stripCanvas.getContext('2d');
+const gCtx  = glowCanvas.getContext('2d');
+
+function resizeCanvases() {
+  const w = stripCanvas.offsetWidth;
+  stripCanvas.width  = w;
+  glowCanvas.width   = w;
+}
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+
+// ============================================================
+//  COLOUR HELPERS
+// ============================================================
+
+function hsv2rgb(h, s, v) {
+  h = ((h % 256) + 256) % 256;
+  h /= 255; s /= 255; v /= 255;
+  const i = Math.floor(h * 6);
+  const f = h * 6 - i;
+  const p = v * (1 - s);
+  const q = v * (1 - f * s);
+  const t = v * (1 - (1 - f) * s);
+  let r, g, b;
+  switch (i % 6) {
+    case 0: r=v; g=t; b=p; break;
+    case 1: r=q; g=v; b=p; break;
+    case 2: r=p; g=v; b=t; break;
+    case 3: r=p; g=q; b=v; break;
+    case 4: r=t; g=p; b=v; break;
+    case 5: r=v; g=p; b=q; break;
+  }
+  return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+}
+
+function heatColor(heat) {
+  // FastLED HeatColor equivalent
+  heat = Math.min(255, Math.max(0, heat));
+  let r, g, b;
+  if (heat < 85) {
+    r = heat * 3; g = 0; b = 0;
+  } else if (heat < 170) {
+    r = 255; g = (heat - 85) * 3; b = 0;
+  } else {
+    r = 255; g = 255; b = (heat - 170) * 3;
+  }
+  return [r, g, b];
+}
+
+function applyBrightness(rgb, bri) {
+  const f = bri / 255;
+  return [Math.round(rgb[0]*f), Math.round(rgb[1]*f), Math.round(rgb[2]*f)];
+}
+
+// ============================================================
+//  VISUAL MODES
+// ============================================================
+
+function renderVuMeter(leds, level, peak, bri) {
+  const lit = Math.round(level * cfg.numLeds);
+  for (let i = 0; i < cfg.numLeds; i++) {
+    if (i < lit) {
+      const hue = Math.round(96 - (i / (cfg.numLeds - 1)) * 96);
+      leds[i] = applyBrightness(hsv2rgb(hue, 255, 255), bri);
+    } else {
+      leds[i] = [0, 0, 0];
+    }
+  }
+  const peakIdx = Math.min(cfg.numLeds - 1, Math.round(peak * (cfg.numLeds - 1)));
+  if (peakIdx >= 0) leds[peakIdx] = applyBrightness([255, 255, 255], bri);
+}
+
+function renderPulse(leds, level, bri) {
+  const b = Math.round(10 + level * (bri - 10));
+  state.hueOffset = (state.hueOffset + 1) % 256;
+  const rgb = applyBrightness(hsv2rgb(state.hueOffset, 230, 255), b);
+  for (let i = 0; i < cfg.numLeds; i++) leds[i] = rgb;
+}
+
+function renderRainbow(leds, level, bri) {
+  const speed = Math.round(2 + level * 30);
+  state.hueOffset = (state.hueOffset + speed) % 256;
+  for (let i = 0; i < cfg.numLeds; i++) {
+    const hue = (state.hueOffset + Math.round((i / cfg.numLeds) * 255)) % 256;
+    leds[i] = applyBrightness(hsv2rgb(hue, 255, 255), bri);
+  }
+}
+
+function renderFire(leds, level, bri) {
+  const baseHeat = Math.round(80 + level * 175);
+  // Ignite base
+  for (let i = 0; i < 3; i++) {
+    const pos = Math.floor(Math.random() * 4);
+    state.heat[pos] = Math.min(255, state.heat[pos] + Math.round(baseHeat * 0.5 + Math.random() * baseHeat * 0.5));
+  }
+  // Cool
+  for (let i = 0; i < cfg.numLeds; i++) {
+    state.heat[i] = Math.max(0, state.heat[i] - Math.round(Math.random() * 25));
+  }
+  // Drift up
+  for (let i = cfg.numLeds - 1; i >= 2; i--) {
+    state.heat[i] = Math.round((state.heat[i-1] + state.heat[i-2] + state.heat[i-2]) / 3);
+  }
+  for (let i = 0; i < cfg.numLeds; i++) {
+    leds[i] = applyBrightness(heatColor(state.heat[i]), bri);
+  }
+}
+
+// ============================================================
+//  DRAW STRIP
+// ============================================================
+
+function drawStrip(leds) {
+  const w = stripCanvas.width;
+  const h = 56;
+  const pw = w / cfg.numLeds;
+
+  sCtx.clearRect(0, 0, w, h);
+  gCtx.clearRect(0, 0, w, h);
+
+  for (let i = 0; i < cfg.numLeds; i++) {
+    const [r, g, b] = leds[i] || [0,0,0];
+    const x = i * pw;
+    const hex = `rgb(${r},${g},${b})`;
+
+    // Pill shape
+    sCtx.fillStyle = hex;
+    const rx = Math.max(2, pw * 0.35);
+    sCtx.beginPath();
+    sCtx.roundRect(x + 1, 4, pw - 2, h - 8, rx);
+    sCtx.fill();
+
+    // Glow canvas (blurred in CSS)
+    gCtx.fillStyle = hex;
+    gCtx.fillRect(x, 0, pw, h);
+  }
+}
+
+// ============================================================
+//  SIMULATION TICK
+// ============================================================
+
+let leds = Array.from({length: 120}, () => [0,0,0]);
+
+function tick(externalLevel) {
+  let raw;
+
+  if (externalLevel !== undefined) {
+    raw = externalLevel;
+  } else if (state.simRunning) {
+    // Synthetic audio: mix of sine waves with random pulses
+    state.simTime += 0.04;
+    const base  = 0.15 + 0.08 * Math.sin(state.simTime * 2.1);
+    const beat  = Math.max(0, Math.sin(state.simTime * 3.7)) > 0.85 ? 0.55 + Math.random()*0.35 : 0;
+    const noise = (Math.random() - 0.5) * 0.06;
+    raw = Math.max(0, Math.min(1, base + beat + noise));
+  } else {
+    raw = 0;
+  }
+
+  // EMA smoothing
+  state.smoothedLevel += cfg.smoothing * (raw - state.smoothedLevel);
+
+  // Peak hold with decay
+  if (state.smoothedLevel > state.peakLevel) {
+    state.peakLevel = state.smoothedLevel;
+  } else {
+    state.peakLevel *= 0.97;
+  }
+
+  const level = state.smoothedLevel;
+  const peak  = state.peakLevel;
+  const bri   = cfg.brightness;
+
+  switch (cfg.mode) {
+    case 'vu':      renderVuMeter(leds, level, peak, bri); break;
+    case 'pulse':   renderPulse(leds, level, bri);         break;
+    case 'rainbow': renderRainbow(leds, level, bri);       break;
+    case 'fire':    renderFire(leds, level, bri);          break;
+  }
+
+  drawStrip(leds);
+
+  // Update meters
+  document.getElementById('levelFill').style.width = (level * 100).toFixed(1) + '%';
+  document.getElementById('peakFill').style.width  = (peak * 100).toFixed(1) + '%';
+  document.getElementById('levelVal').textContent   = level.toFixed(3);
+  document.getElementById('peakVal').textContent    = peak.toFixed(3);
+}
+
+// ============================================================
+//  MICROPHONE INPUT
+// ============================================================
+
+async function startMic() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const ctx    = new (window.AudioContext || window.webkitAudioContext)();
+    const src    = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    state.analyser  = analyser;
+    state.micBuffer = new Uint8Array(analyser.frequencyBinCount);
+    state.micStream = stream;
+    state.micActive = true;
+    document.getElementById('micBtn').textContent = 'Stop Mic';
+    document.getElementById('micStatus').textContent = 'listening';
+  } catch(e) {
+    document.getElementById('micStatus').textContent = 'mic denied';
+  }
+}
+
+function stopMic() {
+  if (state.micStream) {
+    state.micStream.getTracks().forEach(t => t.stop());
+    state.micStream  = null;
+    state.analyser   = null;
+    state.micBuffer  = null;
+    state.micActive  = false;
+    document.getElementById('micBtn').textContent = 'Use Mic';
+    document.getElementById('micStatus').textContent = '';
+  }
+}
+
+function getMicLevel() {
+  if (!state.analyser || !state.micBuffer) return undefined;
+  state.analyser.getByteFrequencyData(state.micBuffer);
+  let sum = 0;
+  for (let i = 0; i < state.micBuffer.length; i++) sum += state.micBuffer[i];
+  return (sum / state.micBuffer.length) / 255;
+}
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+
+function loop() {
+  const micLevel = state.micActive ? getMicLevel() : undefined;
+  tick(micLevel);
+  requestAnimationFrame(loop);
+}
+
+loop();
+
+// ============================================================
+//  EVENT LISTENERS
+// ============================================================
+
+// Mode buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    cfg.mode = btn.dataset.mode;
+    state.hueOffset = 0;
+    state.heat.fill(0);
+
+    // Highlight corresponding card
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('highlight'));
+    const card = document.querySelector(`.card[data-card="${cfg.mode}"]`);
+    if (card) card.classList.add('highlight');
+  });
+});
+
+// Sliders
+document.getElementById('brightnessSlider').addEventListener('input', e => {
+  cfg.brightness = parseInt(e.target.value);
+});
+document.getElementById('ledCountSlider').addEventListener('input', e => {
+  cfg.numLeds = parseInt(e.target.value);
+  state.heat.fill(0);
+  leds = Array.from({length: 120}, () => [0,0,0]);
+});
+document.getElementById('smoothSlider').addEventListener('input', e => {
+  cfg.smoothing = parseInt(e.target.value) / 100;
+});
+
+// Simulate button
+const simBtn = document.getElementById('simBtn');
+simBtn.addEventListener('click', () => {
+  state.simRunning = !state.simRunning;
+  if (state.simRunning) {
+    simBtn.textContent = 'Stop';
+    simBtn.classList.add('running');
+  } else {
+    simBtn.textContent = 'Simulate';
+    simBtn.classList.remove('running');
+    state.smoothedLevel = 0;
+    state.peakLevel = 0;
+  }
+});
+
+// Mic button
+document.getElementById('micBtn').addEventListener('click', () => {
+  if (state.micActive) stopMic();
+  else startMic();
+});
+</script>
+</body>
+</html>

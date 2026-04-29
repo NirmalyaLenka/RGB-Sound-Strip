@@ -1,0 +1,43 @@
+# Arduino IDE build output
+build/
+*.elf
+*.bin
+*.hex
+*.map
+
+# Arduino IDE 2.x sketch cache
+.arduino15/
+.arduino-ide/
+
+# PlatformIO (if ever migrated)
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+__MACOSX/
+
+# Windows metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux editor/temp files
+*~
+*.swp
+*.swo
+
+# VSCode settings (keep launch.json if team shares debug config)
+.vscode/settings.json
+.vscode/c_cpp_properties.json
+
+# CLion
+.idea/
+
+# Compiled Python files (if any scripts added later)
+*.pyc
+__pycache__/
