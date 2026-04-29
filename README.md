@@ -54,7 +54,10 @@ The demo page (`demo/index.html`) lets you preview all four visual modes in a br
 | Breadboard | Full-size or half-size | 1 |
 | USB Cable | Micro-USB or USB-C (matching your ESP32 board) | 1 |
 
----
+--- <img width="347" height="253" alt="image" src="https://github.com/user-attachments/assets/efb7ba18-ef37-4253-aa9f-593838cc1d3a" /> 
+<img width="302" height="234" alt="image" src="https://github.com/user-attachments/assets/0f904e37-f768-4db6-a2fc-a6063cffef65" />
+
+
 
 ## Wiring Diagram
 
