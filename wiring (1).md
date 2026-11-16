@@ -21,7 +21,7 @@ This document provides a detailed pin-by-pin wiring reference for the RGB Sound 
 | 3.3V | VCC | Do not use 5V — ESP32 ADC is 3.3V max |
 | GND | GND | |
 | GPIO 34 | AOUT | Analog output — main signal |
-| GPIO 35 | DOUT | Digital threshold output — optional |
+| Not connected | DOUT | The current firmware does not read the digital output |
 
 ---
 
