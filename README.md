@@ -25,7 +25,7 @@ A beginner-friendly ESP32 project that drives a WS2812B addressable LED strip in
 
 This project uses an ESP32 microcontroller to read audio amplitude from an analog sound sensor and translate it into dynamic LED animations on an addressable RGB strip. The firmware is written in Arduino C++ and relies on the FastLED library for high-performance LED control.
 
-The demo page (`demo/index.html`) lets you preview all four visual modes in a browser before you build the physical circuit.
+The demo page (`index.html`) lets you preview all four visual modes in a browser before you build the physical circuit.
 
 ---
 
@@ -47,7 +47,7 @@ The demo page (`demo/index.html`) lets you preview all four visual modes in a br
 | Microcontroller | ESP32 Dev Module (38-pin or 30-pin) | 1 |
 | Addressable LED Strip | WS2812B, 5V, 60 LEDs/m (or any density) | 1 m (min) |
 | Sound Sensor Module | KY-038 or MAX4466 breakout | 1 |
-| Power Supply | 5V DC, minimum 3A (for 60 LEDs at full white) | 1 |
+| Power Supply | Regulated 5V DC, sized for the strip's maximum load | 1 |
 | Resistor | 330-470 ohm, 1/4W | 1 |
 | Capacitor | 1000 uF, 6.3V or higher (electrolytic) | 1 |
 | Jumper Wires | Male-to-male and male-to-female | assorted |
@@ -77,12 +77,12 @@ Sound Sensor (KY-038 / MAX4466)
 VCC      ---> ESP32 3.3V
 GND      ---> ESP32 GND
 AOUT     ---> ESP32 GPIO 34
-DOUT     ---> ESP32 GPIO 35  (optional; used only for digital threshold)
+DOUT     ---> leave disconnected for the current sketch (not read by firmware)
 ```
 
 ### Important Notes
 
-1. Never power the LED strip from the ESP32 3.3V or 5V pins. Use a dedicated 5V supply rated for at least 60 mA per LED at full brightness.
+1. Never power the LED strip from the ESP32 3.3V or 5V pins. Use a dedicated regulated 5V supply sized for the strip and wiring. At 60 mA per LED, 60 LEDs can require up to about 3.6 A at full-white; the actual draw depends on brightness and pixel colours.
 2. Always connect the GND of the external supply to the ESP32 GND to share a common reference.
 3. The 330-ohm resistor on the data line protects against ringing and signal overshoot.
 4. The 1000 uF capacitor across the strip power rails absorbs inrush current on startup.
@@ -128,7 +128,8 @@ https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32
 ### Step 4 — Open the Sketch
 
 1. Clone or download this repository.
-2. Open `src/rgb_sound_strip.ino` in Arduino IDE.
+2. In a local working copy, create a folder named `rgb_sound_strip` and copy `rgb_sound_strip.ino` into it; Arduino IDE expects the sketch folder and `.ino` base names to match. This does not rename files in the repository.
+3. Open the local sketch in Arduino IDE.
 
 ### Step 5 — Select Your Board
 
@@ -144,7 +145,7 @@ Edit the configuration section at the top of the sketch (see Configuration below
 
 ## Configuration
 
-All user-configurable parameters are located at the top of `src/rgb_sound_strip.ino` under the comment block labelled "Configuration".
+All user-configurable parameters are located at the top of `rgb_sound_strip.ino` under the comment block labelled "Configuration".
 
 ```cpp
 #define LED_PIN          13      // GPIO pin connected to LED strip data line
@@ -215,34 +216,28 @@ Use these values to calibrate `NOISE_FLOOR` and `SOUND_CEILING` for your environ
 
 ---
 
-## Project Structure
+## Actual repository structure
 
-```
-rgb-sound-strip/
-|
-|-- src/
-|   |-- rgb_sound_strip.ino      Main firmware sketch
-|
-|-- demo/
-|   |-- index.html               Interactive browser demo of all visual modes
-|
-|-- docs/
-|   |-- wiring.md                Detailed wiring notes and pin reference
-|   |-- components.md            Full bill of materials with purchase links guidance
-|
-|-- .gitignore                   Arduino and OS build artefacts
-|-- LICENSE                      MIT License
-|-- README.md                    This file
-```
+The checked-in files are at the repository root; there are no `src/`, `demo/`, or `docs/` directories in the current tree.
 
----
+| File | Purpose |
+|---|---|
+| `rgb_sound_strip.ino` | ESP32 firmware sketch |
+| `index.html` | Browser-only visual demo; it does not control connected hardware |
+| `wiring (1).md` | Wiring reference |
+| `components.md` | Component list and bill of materials |
+| `LICENSE (2)` | MIT license text under a nonstandard filename |
+| `gitignore (3)` | Ignore-pattern text under a nonstandard filename; Git does not automatically treat it as `.gitignore` |
+
+### Known limitations and verification
+
+- The firmware reads the analog sound signal on GPIO 34. `SOUND_DPIN` is defined in the sketch, but the current firmware does not read the digital output on GPIO 35; the DOUT connection is therefore not needed for current behavior.
+- The 3.6 A figure above is a worst-case estimate from 60 mA per LED, not a measured current draw. Choose the supply, wire gauge, connectors, and fuse for the actual strip and installation.
+- The sketch and hardware were not compiled or tested during this documentation review.
 
 ## License
 
-This project is released under the MIT License. See the LICENSE file for full terms. You are free to use, modify, and distribute this project for personal and commercial purposes with attribution.
-
-
----
+The repository contains MIT license text in [`LICENSE (2)`](LICENSE%20(2)). The filename is nonstandard, so GitHub may not automatically detect it as the repository license. No rename was made.
 
 ## Skills & technologies
 
